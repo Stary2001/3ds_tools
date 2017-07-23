@@ -45,14 +45,8 @@ if args.cid == None:
 	print("No NAND CID! It is required!")
 	exit()
 
+AESEngine.init_keys(otp_path = args.otp)
 if args.action == 'extract':
-	if args.cid == None:
-		print("No NAND CID! It is required!")
-		exit()
-	if args.otp == None:
-		print("No OTP! It is required!")
-		exit()
-	AESEngine.init_keys(otp_path = args.otp)
 	n = NANDImage(args.file, cid=unhexlify(args.cid))
 	if args.ctr:
 		print("Extracting CTRNAND...")
@@ -75,7 +69,6 @@ if args.action == 'extract':
 	if args.agb:
 		extract('agbsave_dec.bin', n.agbsave)
 elif args.action == 'list':
-	AESEngine.init_keys(otp_path = args.otp)
 	n = NANDImage(args.file, cid=unhexlify(args.cid))
 	for p in n.ncsd.partitions:
 		print(p)
@@ -83,8 +76,6 @@ elif args.action == 'list':
 			for pp in p.mbr.partitions:
 				print("    " + str(pp))
 elif args.action == 'create':
-	AESEngine.init_keys(otp_path=args.otp)
-
 	n = NANDImage(cid=unhexlify(args.cid))
 
 	def round_sector(s):
