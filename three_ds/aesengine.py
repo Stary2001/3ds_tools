@@ -109,8 +109,13 @@ class AESEngine:
 
     @staticmethod
     def setup_console_unique_keys(otp, dev=False):
-        otp_key, otp_iv = AESEngine.get_otp_key(dev=dev)
-        d_otp = aes_cbc_dec(otp_key, otp_iv, otp)
+        # is it already decrypted?
+        d_otp = None
+        if otp[0:4] == b'\x0f\xb0\xad\xde':
+            d_otp = otp
+        else:
+            otp_key, otp_iv = AESEngine.get_otp_key(dev=dev)
+            d_otp = aes_cbc_dec(otp_key, otp_iv, otp)
 
         twl_cid_lo, twl_cid_hi = struct.unpack("II", d_otp[0x08:0x10])
         twl_cid_lo ^= 0xB358A6AF
