@@ -28,6 +28,10 @@ if args.movable == None:
 	print("No movable.sed! It is required!")
 	exit()
 
+if args.out == None:
+	print("No output path! It is required!")
+	exit()
+
 AESEngine.init_keys(otp_path = args.otp, movable_path = args.movable, b9_path=args.boot9)
 
 def crypt_file(inbase, outbase, relpath):
@@ -68,11 +72,12 @@ if os.path.isdir(base):
 	# TODO - can multiple id1's exist?
 	id1 = os.listdir(args.dir + "/" + id0)[0]
 	base += "/" + id1
-	for (a, b, c) in os.walk(base):
-		a = a[len(base):]
-		for name in c:
-			path = a + "/" + name
-			print(path)
-			crypt_file(base, args.out, path)
+	for (path, dirs, files) in os.walk(base):
+		rel_path = path[len(base):]
+		rel_path = rel_path.replace('\\', '/') # Important - the CTR uses forward slashes. Backslashes (ie on Windows) will result in an invalid CTR.
+		for name in files:
+			p = rel_path + "/" + name
+			print(p)
+			crypt_file(base, args.out, p)
 else:
 	print("Invalid ID0!")
