@@ -14,7 +14,7 @@ class AESEngine:
     cached_normalkeys = {}
 
     @staticmethod
-    def init_keys(b9_path = None, otp_path = None, dev = False):
+    def init_keys(b9_path = None, otp_path = None, movable_path = None, dev = False):
         def set(slot, t, key):
             if t == "keyx":
                 AESEngine.set(slot, keyx=key)
@@ -22,23 +22,6 @@ class AESEngine:
                 AESEngine.set(slot, keyy=key)
             elif t == "key":
                 AESEngine.set(slot, key=key)
-
-        hardcoded_keys = [
-            ('keyy', 0x24, unhexlify(b'74CA074884F4228DEB2A1CA72D287762'), 'all'),
-            ('keyx', 0x25, unhexlify(b'CEE7D8AB30C00DAE850EF5E382AC5AF3'), 'retail'),
-            ('keyx', 0x25, unhexlify(b'81907A4B6F1B47323A677974CE4AD71B'), 'dev'),
-            ('keyy', 0x2f, unhexlify(b'C369BAA21E188A88A9AA94E5506A9F16'), 'retail'),
-            ('keyy', 0x2f, unhexlify(b'7325C4EB143A0D5F5DB6E5C57A2195AC'), 'dev'),
-            ('keyy', 0x05, unhexlify(b'4D804F4E9990194613A204AC584460BE'), 'all'),
-        ]
-
-        for k in hardcoded_keys:
-            if k[3] == 'all':
-                set(k[1], k[0], k[2])
-            elif k[3] == 'retail' and not dev:
-                set(k[1], k[0], k[2])
-            elif k[3] == 'dev' and dev:
-                set(k[1], k[0], k[2])
 
         if b9_path == None:
             b9_path = os.environ["HOME"] + "/.3ds/boot9.bin"
@@ -89,6 +72,24 @@ class AESEngine:
                 else:
                     set(i, k[0], b9_keys[off:off+16])
                     off += 16
+
+        hardcoded_keys = [
+            ('keyy', 0x24, unhexlify(b'74CA074884F4228DEB2A1CA72D287762'), 'all'),
+            ('keyx', 0x25, unhexlify(b'CEE7D8AB30C00DAE850EF5E382AC5AF3'), 'retail'),
+            ('keyx', 0x25, unhexlify(b'81907A4B6F1B47323A677974CE4AD71B'), 'dev'),
+            ('keyy', 0x2f, unhexlify(b'C369BAA21E188A88A9AA94E5506A9F16'), 'retail'),
+            ('keyy', 0x2f, unhexlify(b'7325C4EB143A0D5F5DB6E5C57A2195AC'), 'dev'),
+            ('keyy', 0x05, unhexlify(b'4D804F4E9990194613A204AC584460BE'), 'all'),
+        ]
+
+        for k in hardcoded_keys:
+            if k[3] == 'all':
+                set(k[1], k[0], k[2])
+            elif k[3] == 'retail' and not dev:
+                set(k[1], k[0], k[2])
+            elif k[3] == 'dev' and dev:
+                set(k[1], k[0], k[2])
+
         otp = None
         if otp_path == None:
             return
@@ -96,6 +97,14 @@ class AESEngine:
             otp = f.read()
 
         AESEngine.setup_console_unique_keys(otp, dev=dev)
+        if movable_path == None:
+            return
+        
+        movable = None
+        with open(movable_path, "rb") as f:
+            movable = f.read()
+
+        AESEngine.setup_movable_sed_keys(movable)
 
     @staticmethod
     def get_otp_key(dev=False):
@@ -154,8 +163,7 @@ class AESEngine:
 
         a = gen(64)
         for i in range(0x4, 0x8):
-            if i != 0x5: # the 0x5 key is set by n3ds p9
-                AESEngine.set(i, keyx=a[0:16])
+            AESEngine.set(i, keyx=a[0:16])
 
         for i in range(0x8, 0xc):
             AESEngine.set(i, keyx=a[16:32])
@@ -189,6 +197,13 @@ class AESEngine:
         for i in range(0x28, 0x2c):
             AESEngine.set(i, keyx=d[off:off+16])
             off += 16
+
+    @staticmethod
+    def setup_movable_sed_keys(movable):
+        k = movable[0x110:0x120]
+        AESEngine.set(0x30, keyy=k)
+        AESEngine.set(0x34, keyy=k)
+        AESEngine.set(0x3a, keyy=k)
 
     @staticmethod
     def set(slot, key=None, keyx=None, keyy=None):
