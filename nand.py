@@ -35,6 +35,7 @@ parser.add_argument('--twlmbr', action='store_true', help='extract twl mbr')
 parser.add_argument('--firm', type=str, default=None, help='extract firms')
 parser.add_argument('--agb', action='store_true', help='extract agbsave')
 parser.add_argument('--new3ds', action='store_true', help='is new3ds?')
+parser.add_argument('--boot9', metavar='boot9', type=str, default=None, help='boot9 path')
 
 args = parser.parse_args()
 
@@ -45,7 +46,7 @@ if args.cid == None:
 	print("No NAND CID! It is required!")
 	exit()
 
-AESEngine.init_keys(otp_path = args.otp)
+AESEngine.init_keys(otp_path = args.otp, b9_path=args.boot9)
 if args.action == 'extract':
 	n = NANDImage(args.file, cid=unhexlify(args.cid))
 	if args.ctr:

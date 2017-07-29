@@ -16,6 +16,7 @@ parser.add_argument('--movable', metavar='movable', type=str, help='movable.sed 
 parser.add_argument('--otp', metavar='otp', type=str, help='OTP path')
 parser.add_argument('--out', metavar='out', type=str, help='output directory')
 parser.add_argument('--inplace', action='store_true', help='encrypt/decrypt in place')
+parser.add_argument('--boot9', metavar='boot9', type=str, default=None, help='boot9 path')
 
 args = parser.parse_args()
 
@@ -27,7 +28,7 @@ if args.movable == None:
 	print("No movable.sed! It is required!")
 	exit()
 
-AESEngine.init_keys(otp_path = args.otp, movable_path = args.movable)
+AESEngine.init_keys(otp_path = args.otp, movable_path = args.movable, b9_path=args.boot9)
 
 def crypt_file(inbase, outbase, relpath):
 	path_enc = relpath.lower().encode('UTF-16LE') + b"\x00\x00"

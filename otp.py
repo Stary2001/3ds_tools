@@ -7,10 +7,11 @@ parser.add_argument('action', metavar='action', type=str, help='encrypt/decrypt'
 parser.add_argument('file', metavar='file', type=str, help='OTP filename')
 parser.add_argument('--dev', action='store_true', help='Use the development unit encryption keys.')
 parser.add_argument('--force', action='store_true', help='Override the OTP hash check.')
+parser.add_argument('--boot9', metavar='boot9', type=str, default=None, help='boot9 path')
 
 args = parser.parse_args()
 
-AESEngine.init_keys(otp_path=None, dev=args.dev)
+AESEngine.init_keys(otp_path=None, b9_path=args.boot9, dev=args.dev)
 
 otp_f = open(args.file, 'rb')
 otp = otp_f.read()
