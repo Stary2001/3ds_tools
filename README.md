@@ -14,3 +14,5 @@ These tools require the python `cryptography` module, installed with
 	* Requires OTP and NAND CID.
 * otp.py
 	* Tool for OTP encryption and decryption.
+* sd.py
+	* Tool for SD content encryption and decryption (_given movable.sed!_)
