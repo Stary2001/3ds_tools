@@ -20,7 +20,7 @@ cmac_types = {
 
 db_sids = {
 	"ticket": 0,
-	"cert": 1,
+	"certs": 1,
 	"title": 2,
 	"import": 3,
 	"tmp_t": 4,
@@ -28,7 +28,18 @@ db_sids = {
 }
 
 class ContentFile:
-	def __init__(self, path, sd):
+	def __init__(self, path, sd = False):
+		if sd:
+			self.keyslot = 0x34
+			self.mode = 'ctr'
+			path_enc = path.lower().encode('UTF-16LE') + b"\x00\x00"
+			path_hash = hashlib.sha256(path_enc).digest()
+			self.iv = b''
+			for i in range(0, 16):
+				self.iv += (path_hash[i] ^ path_hash[i+16]).to_bytes(1, 'big')
+		else:
+			self.mode = 'none'
+
 		global db_sids
 		if sd:
 			# SD extdata
@@ -55,7 +66,7 @@ class ContentFile:
 				self.sid = int(match[3], 16).to_bytes(4, 'little')
 				return
 
-			match = re.match("/dbs/([a-z]+).db", path)
+			match = re.match("/dbs/([a-z_]+).db", path)
 			if match:
 				self.cmac_type = "sd-db"
 				self.sid = db_sids[match[1]].to_bytes(4, 'little')
@@ -63,19 +74,57 @@ class ContentFile:
 
 			self.cmac_type = None
 		else:
-			pass
 			# NAND extdata
 			# id0_high, id0_low, xid_high, xid_low, fid_high, fid_low
 			# sid = 1
 			#"/data/%016llx%016llx/extdata/%08lx/%08lx/%08lx/%08lx"
+			match = re.match("/data/([0-9a-fA-F]{32,})/extdata/([0-9a-fA-F]{8,})/([0-9a-fA-F]{8,})/([0-9a-fA-F]{8,})/([0-9a-fA-F]{8,})", path)
+			if match:
+				self.id0_high = int(match[1][0:16], 16).to_bytes(16, 'little')
+				self.id0_low = int(match[1][16:32], 16).to_bytes(16, 'little')
+				self.xid_high = int(match[2], 16).to_bytes(4, 'little')
+				self.xid_low = int(match[3], 16).to_bytes(4, 'little')
+				self.fid_high = int(match[4], 16).to_bytes(4, 'little')
+				self.fid_low = int(match[5], 16).to_bytes(4, 'little')
+				self.sid = b'\x01\x00\x00\x00'
+				self.cmac_type = 'nand-extdata'
+				return
 
 			# Quota.dat:
 			# same, but sid = 0 fid_low = 0; fid_high = 0;
 			#"/data/%016llx%016llx/extdata/%08lx/%08lx/Quota.dat"
 
+			match = re.match("/data/([0-9a-fA-F]{32,})/extdata/([0-9a-fA-F]{8,})/([0-9a-fA-F]{8,})/Quota.dat", path)
+			if match:
+				self.id0_high = int(match[1][0:16], 16).to_bytes(16, 'little')
+				self.id0_low = int(match[1][16:32], 16).to_bytes(16, 'little')
+				self.xid_high = int(match[2], 16).to_bytes(4, 'little')
+				self.xid_low = int(match[3], 16).to_bytes(4, 'little')
+				self.fid_high = b'\x00\x00\x00\x00'
+				self.fid_low = b'\x00\x00\x00\x00'
+				self.sid = b'\x00\x00\x00\x00'
+				self.cmac_type = 'nand-extdata'
+				return
+
 			# NAND savedata
 			#id0_high, id0_low, fid_low, fid_high
 			#"/data/%016llx%016llx/sysdata/%08lx/%08lx"
+			match = re.match("/data/([0-9a-fA-F]{32,})/sysdata/([0-9a-fA-F]{8,})/([0-9a-fA-F]{8,})", path)
+			if match:
+				self.id0_high = int(match[1][0:16], 16).to_bytes(16, 'little')
+				self.id0_low = int(match[1][16:32], 16).to_bytes(16, 'little')
+				self.fid_low = int(match[2], 16).to_bytes(4, 'little')
+				self.fid_high = int(match[3], 16).to_bytes(4, 'little')
+				self.cmac_type = 'nand-save'
+				return
+
+			match = re.match("/dbs/([a-z_]+).db", path)
+			if match:
+				self.cmac_type = "nand-db"
+				self.sid = db_sids[match[1]].to_bytes(4, 'little')
+				return
+
+			self.cmac_type = None
 
 	def get_cmac(self):
 		global cmac_types
@@ -101,8 +150,8 @@ class ContentFile:
 				hashdata += self.tid_high
 				hashdata += hashlib.sha256(subhash).digest()
 			elif self.cmac_type == "nand-save":
-				hashdata += self.fid_high
 				hashdata += self.fid_low
+				hashdata += self.fid_high
 				hashdata += disa
 			elif self.cmac_type == "sd-db" or self.cmac_type == "nand-db":
 				hashdata += self.sid
@@ -123,3 +172,8 @@ class SDFile(CryptFile, ContentFile):
 		self.iv = b''
 		for i in range(0, 16):
 			self.iv += (path_hash[i] ^ path_hash[i+16]).to_bytes(1, 'big')
+
+class NANDFile(CryptFile, ContentFile):
+	def __init__(self, upper, relpath):
+		CryptFile.__init__(self, upper)
+		ContentFile.__init__(self, relpath, sd=False)
