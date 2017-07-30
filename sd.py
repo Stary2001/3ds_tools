@@ -45,7 +45,6 @@ def crypt_file(inbase, outbase, relpath):
 		with open(outbase + relpath, 'wb') as f2:
 			for i in bar(range(0, n)):
 				f2.write(f.read(blk))
-	# Fix CMACs here.. :(
 
 keyy = None
 with open(AESEngine.movable_path, 'rb') as f:

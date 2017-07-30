@@ -21,6 +21,9 @@ class CryptFile:
 		off = self.offset + self.internal_offset
 		self.upper.seek(off, where)
 
+	def tell(self):
+		return self.upper.tell() - self.offset
+
 	def read(self, count):
 		off = self.offset + self.internal_offset
 

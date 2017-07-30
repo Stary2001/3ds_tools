@@ -26,7 +26,8 @@ def aes_ctr(key, ctr, data):
 def aes_cmac(key, data):
     backend = default_backend()
     cmac = CMAC(algorithms.AES(key), backend=backend)
-    return cmac.update(data) + cmac.finalize()
+    cmac.update(data)
+    return cmac.finalize()
 
 def xor(a, b):
     a = a[:len(b)]

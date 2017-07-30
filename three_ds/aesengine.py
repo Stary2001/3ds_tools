@@ -1,7 +1,7 @@
 import os
 from binascii import hexlify, unhexlify
 import hashlib
-from .crypto_wrappers import aes_cbc_enc, aes_cbc_dec, aes_ctr, aes_ctr_dsi, aes_ecb_dec
+from .crypto_wrappers import aes_cbc_enc, aes_cbc_dec, aes_ctr, aes_ctr_dsi, aes_ecb_dec, aes_cmac
 import struct
 import sys
 
@@ -307,3 +307,7 @@ class AESEngine:
             return aes_ctr(AESEngine.cached_normalkeys[keyslot], iv, data)
         elif mode == 'ctr-dsi':
             return aes_ctr_dsi(AESEngine.cached_normalkeys[keyslot], iv, data)
+
+    @staticmethod
+    def cmac(keyslot, data):
+        return aes_cmac(AESEngine.cached_normalkeys[keyslot], data)
