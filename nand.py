@@ -39,14 +39,15 @@ parser.add_argument('--boot9', metavar='boot9', type=str, default=None, help='bo
 
 args = parser.parse_args()
 
-if args.otp == None:
-	print("No OTP! It is required!")
-	exit()
 if args.cid == None:
 	print("No NAND CID! It is required!")
 	exit()
 
-AESEngine.init_keys(otp_path = args.otp, b9_path=args.boot9)
+success, what = AESEngine.init_keys(otp_path = args.otp, b9_path=args.boot9, required = ('otp'))
+if not success:
+	print("Missing " + what + "!")
+	exit()
+
 if args.action == 'extract':
 	n = NANDImage(args.file, cid=unhexlify(args.cid))
 	if args.ctr:

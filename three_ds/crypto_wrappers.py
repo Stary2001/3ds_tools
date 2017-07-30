@@ -1,5 +1,6 @@
 from binascii import hexlify, unhexlify
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.cmac import CMAC
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 import struct
 import sys
@@ -21,6 +22,11 @@ def aes_ctr(key, ctr, data):
     cipher = Cipher(algorithms.AES(key), modes.CTR(ctr), backend=backend)
     decryptor = cipher.decryptor()
     return decryptor.update(data) + decryptor.finalize()
+
+def aes_cmac(key, data):
+    backend = default_backend()
+    cmac = CMAC(algorithms.AES(key), backend=backend)
+    return cmac.update(data) + cmac.finalize()
 
 def xor(a, b):
     a = a[:len(b)]

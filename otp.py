@@ -11,7 +11,11 @@ parser.add_argument('--boot9', metavar='boot9', type=str, default=None, help='bo
 
 args = parser.parse_args()
 
-AESEngine.init_keys(otp_path=None, b9_path=args.boot9, dev=args.dev)
+success, what = AESEngine.init_keys(otp_path=None, b9_path=args.boot9, dev=args.dev)
+
+if not success:
+	print("Missing " + what + "!")
+	exit()
 
 otp_f = open(args.file, 'rb')
 otp = otp_f.read()

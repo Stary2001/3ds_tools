@@ -3,6 +3,7 @@ from binascii import hexlify, unhexlify
 import hashlib
 from .crypto_wrappers import aes_cbc_enc, aes_cbc_dec, aes_ctr, aes_ctr_dsi, aes_ecb_dec
 import struct
+import sys
 
 class AESEngine:
     b9 = None
@@ -14,7 +15,7 @@ class AESEngine:
     cached_normalkeys = {}
 
     @staticmethod
-    def init_keys(b9_path = None, otp_path = None, movable_path = None, dev = False):
+    def init_keys(b9_path = None, otp_path = None, movable_path = None, dev = False, required = None):
         def set(slot, t, key):
             if t == "keyx":
                 AESEngine.set(slot, keyx=key)
@@ -23,21 +24,45 @@ class AESEngine:
             elif t == "key":
                 AESEngine.set(slot, key=key)
 
+        home_path = None
+        dir_name = None
+        if sys.platform == 'win32':
+            home_path = os.environ["APPDATA"]
+            dir_name = "3ds"
+        else:
+            home_path = os.environ["HOME"]
+            dir_name = ".3ds"
+
         if b9_path == None:
-            b9_path = os.environ["HOME"] + "/.3ds/boot9.bin"
+            b9_path = home_path + "/" + dir_name + "/boot9.bin"
+            
         if otp_path == None:
-            otp_path = os.environ["HOME"] + "/.3ds/otp.bin"
+            otp_path = home_path + "/" + dir_name + "/otp.bin"
+            
+        if movable_path == None:
+            movable_path = home_path + "/" + dir_name + "/movable.sed"
+
+        AESEngine.b9_path = b9_path
+        AESEngine.otp_path = otp_path
+        AESEngine.movable_path = movable_path
         
+        if not os.path.exists(b9_path):
+            return (False, 'boot9')
+        if 'otp' in required and not os.path.exists(otp_path):
+            return (False, 'otp')
+        if 'movable' in required and not os.path.exists(movable_path):
+            return (False, 'movable')
+
         AESEngine.b9_keyblob_offset = 0x8000+0x5860
         if dev:
             AESEngine.b9_keyblob_offset += 0x400
-        
-        if b9_path == None:
-            return
 
-        b9 = open(b9_path, "rb")
-        AESEngine.b9 = b9.read()
-        b9.close()
+        try:
+            b9 = open(b9_path, "rb")
+            AESEngine.b9 = b9.read()
+            b9.close()
+        except FileNotFoundError:
+            return (False, 'boot9')
 
         o = AESEngine.b9_keyblob_offset
         b9_keys = AESEngine.b9[o + 0x170: o + 0x170 + 16*38]
@@ -90,21 +115,27 @@ class AESEngine:
             elif k[3] == 'dev' and dev:
                 set(k[1], k[0], k[2])
 
-        otp = None
-        if otp_path == None:
-            return
-        with open(otp_path, "rb") as f:
+        otp = open(otp_path, 'rb').read()
+        try:
+            f = open(otp_path, 'rb')
             otp = f.read()
+            f.close()
+        except FileNotFoundError:
+            return (not 'otp' in required, 'otp')
 
         AESEngine.setup_console_unique_keys(otp, dev=dev)
-        if movable_path == None:
-            return
-        
+
         movable = None
-        with open(movable_path, "rb") as f:
+        try:
+            f = open(movable_path, 'rb')
             movable = f.read()
+            f.close()
+        except FileNotFoundError:
+            return (not 'movable' in required, 'movable')
 
         AESEngine.setup_movable_sed_keys(movable)
+
+        return (True, '')
 
     @staticmethod
     def get_otp_key(dev=False):

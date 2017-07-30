@@ -1,6 +1,7 @@
 from sys import argv
 import struct
 from .aesengine import AESEngine
+from .crypt_file import CryptFile
 import hashlib
 from os import SEEK_CUR, SEEK_SET
 from binascii import unhexlify
@@ -28,11 +29,11 @@ mode_map = [
 	'none'
 ]
 
-class NCSDPartition:
+class NCSDPartition(CryptFile):
 	def __init__(self, nand, fs_type, crypt_type, offset, length):
-		global keyslot_map
+		super().__init__(nand)
 
-		self.upper = nand
+		global keyslot_map
 
 		self.type = fs_type_map[fs_type]
 		self.fs_type = fs_type
@@ -41,97 +42,19 @@ class NCSDPartition:
 		self.length = length
 		self.keyslot = keyslot_map[fs_type-1][crypt_type-1]
 		self.mode = mode_map[fs_type]
-		if self.keyslot == 3 and self.mode == 'ctr':
-			self.mode = 'ctr-dsi'
-		self.iv = None
+		if self.mode == 'ctr':
+			if self.keyslot == 3:
+				self.mode = 'ctr-dsi'
+				self.iv = nand.twl_ctr
+			else:
+				self.iv = nand.ctr_ctr
+
 		self.internal_offset = 0
 		self.mbr = None
 		self.real = self.upper.real
 
 	def __str__(self):
 		return "{} (crypto {}) using keyslot 0x{:02x} at {:x} - {:x}".format(self.type, self.crypt_type, self.keyslot, self.offset, self.offset + self.length)
-
-	def seek(self, offset, where=SEEK_SET):
-		self.internal_offset = offset
-		off = self.offset + self.internal_offset
-		self.upper.f.seek(off, where)
-
-	def read(self, count):
-		off = self.offset + self.internal_offset
-
-		before = off % 16
-		after = (off + count) % 16
-		if count%16 != 0:
-			count = count + 16-count%16
-
-		enc = self.upper.f.read(count)
-		enc = b'\x00' * before + enc + b'\x00' * after
-
-		if self.mode == 'none':
-			return enc
-
-		iv = None
-		if self.mode == 'ctr' or self.mode == 'ctr-dsi':
-			if not self.upper.ctr_ctr:
-				raise ValueError("No NAND CTR!")
-
-			off = off // 16
-			iv = None
-			if self.keyslot > 0x3:
-				iv = self.upper.ctr_ctr
-			else:
-				iv = self.upper.twl_ctr
-
-			iv = int.from_bytes(iv, 'big')
-			iv += off
-			iv = iv.to_bytes(16, 'big')
-			self.internal_offset += count
-
-		data = AESEngine.decrypt(self.mode, self.keyslot, enc, iv=iv)
-		if before != 0:
-			data = data[before:]
-		if after != 0:
-			data = data[:-after]
-		return data
-
-	def write(self, data):
-		if self.mode == 'none':
-			self.upper.write(data)
-			return
-
-		count = len(data)
-		off = self.offset + self.internal_offset
-
-		before = off % 16
-		after = (off + count) % 16
-		if count%16 != 0:
-			count = count + 16-count%16
-		data = b'\x00' * before + data + b'\x00' * after
-
-		iv = None
-		if self.mode == 'ctr' or self.mode == 'ctr-dsi':
-			if not self.upper.ctr_ctr:
-				raise ValueError("No NAND CTR!")
-
-			off = off // 16
-			iv = None
-			if self.keyslot > 0x3:
-				iv = self.upper.ctr_ctr
-			else:
-				iv = self.upper.twl_ctr
-
-			iv = int.from_bytes(iv, 'big')
-			iv += off
-			iv = iv.to_bytes(16, 'big')
-
-		data = AESEngine.encrypt(self.mode, self.keyslot, data, iv=iv)
-		if before != 0:
-			data = data[before:]
-		if after != 0:
-			data = data[:-after]
-
-		self.internal_offset += len(data)
-		self.upper.write(data)
 
 class NCSD:
 	def __init__(self, nand, partitions):
