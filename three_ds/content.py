@@ -160,6 +160,12 @@ class ContentFile:
 			cmac = AESEngine.cmac(cmac_types[self.cmac_type][0], hashlib.sha256(hashdata).digest())
 			return cmac
 
+	def verify_cmac(self):
+		self.seek(0)
+		orig_cmac = self.read(0x10)
+		new_cmac = self.get_cmac()
+		return orig_cmac == new_cmac
+
 class SDFile(CryptFile, ContentFile):
 	def __init__(self, upper, relpath):
 		CryptFile.__init__(self, upper)
