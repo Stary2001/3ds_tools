@@ -66,6 +66,8 @@ class ContentFile:
 				self.iv += (path_hash[i] ^ path_hash[i+16]).to_bytes(1, 'big')
 		else:
 			self.mode = 'none'
+			self.encrypted = False
+			self.decrypted = True
 
 		global db_sids
 		if sd:
@@ -189,7 +191,10 @@ class ContentFile:
 
 	def get_cmac(self):
 		if self.cmac_type == 'movable':
-			pass
+			self.seek(0x120)
+			c = self.read(0x10)
+			if c == b'':
+				return b'\x00' * 16
 		elif self.cmac_type == 'agbsave':
 			pass
 		else:
@@ -198,7 +203,9 @@ class ContentFile:
 
 	def write_cmac(self, cmac):
 		if self.cmac_type == 'movable':
-			pass
+			if len(self) == 0x130:
+				self.seek(0x120)
+				self.write(cmac)
 		elif self.cmac_type == 'agbsave':
 			pass
 		else:

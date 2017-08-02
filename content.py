@@ -4,7 +4,7 @@ import argparse
 import re
 import os
 from three_ds.aesengine import AESEngine
-from three_ds.content import SDFile
+from three_ds.content import SDFile, NANDFile
 import hashlib
 from binascii import hexlify
 import struct
@@ -52,9 +52,13 @@ def crypt_file(mode, inbase, outbase, relpath):
 			for i in bar(range(0, n)):
 				f2.write(f.read(blk))
 
-def cmac_file(mode, inbase, outbase, relpath):
+def cmac_file(mode, inbase, outbase, relpath, sd=True):
 	with open(inbase + "/" + relpath, 'rb') as f:
-		f = SDFile(f, relpath)
+		if sd:
+			f = SDFile(f, relpath)
+		else:
+			f = NANDFile(f, relpath)
+
 		if f.cmac_type == None:
 			return
 
@@ -93,7 +97,14 @@ if args.sd:
 					cmac_file(args.action, base, args.out, p)
 	else:
 		print("Invalid ID0!")
-elif args.nand:
-	print("NAND?")
+elif args.nand and args.action != 'encrypt' and args.action != 'decrypt':
+	for (path, dirs, files) in os.walk(args.dir):
+		rel_path = path[len(args.dir):]
+		rel_path = rel_path.replace('\\', '/') # Important - the CTR uses forward slashes. Backslashes (ie on Windows) will result in an invalid CTR.
+		for name in files:
+			p = rel_path + "/" + name
+			#print(p)
+			if args.action == 'fix-cmac' or args.action == 'verify-cmac':
+				cmac_file(args.action, args.dir, args.out, p, sd=args.sd)
 else:
 	print("?")
