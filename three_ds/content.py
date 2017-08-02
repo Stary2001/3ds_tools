@@ -3,6 +3,7 @@ from .crypt_file import CryptFile
 import hashlib
 import re
 from binascii import hexlify
+import struct
 
 cmac_types = {
 	# name			keyslot, file off, cmac data
@@ -28,8 +29,34 @@ db_sids = {
 }
 
 class ContentFile:
-	def __init__(self, path, sd = False):
-		if sd:
+	def __init__(self, file, path, sd = False):
+		valid_decrypted_headers = [b'DISA', b'DIFF', b'NCCH']
+		file.seek(0x100)
+
+		self.decrypted = False
+		v = file.read(4) 
+		if v in valid_decrypted_headers:
+			self.decrypted = True
+		else:
+			# TMD, CMD or blank save?
+			file.seek(0)
+			first_dword = file.read(4)
+			if first_dword == b'\x00\x00\x00\x00': # Blank save
+				self.decrypted = True
+			else:
+				tmd_sig_type = struct.unpack(">I", first_dword)[0]
+				if tmd_sig_type == 0x10003 or tmd_sig_type == 0x10004 or tmd_sig_type == 0x10005: # TMD!
+					self.decrypted = True
+				else:
+					cmd_content_id = struct.unpack("<I", first_dword)[0] # CMD!
+					m = re.search("([0-9a-fA-F]{8,}).cmd", path)
+					if m:
+						if cmd_content_id == int(m[1], 16):
+							self.decrypted = True
+
+		self.encrypted = not self.decrypted
+
+		if sd and self.encrypted:
 			self.keyslot = 0x34
 			self.mode = 'ctr'
 			path_enc = path.lower().encode('UTF-16LE') + b"\x00\x00"
@@ -126,7 +153,7 @@ class ContentFile:
 
 			self.cmac_type = None
 
-	def get_cmac(self):
+	def calculate_cmac(self):
 		global cmac_types
 
 		if self.cmac_type == "agbsave":
@@ -160,16 +187,28 @@ class ContentFile:
 			cmac = AESEngine.cmac(cmac_types[self.cmac_type][0], hashlib.sha256(hashdata).digest())
 			return cmac
 
-	def verify_cmac(self):
-		self.seek(0)
-		orig_cmac = self.read(0x10)
-		new_cmac = self.get_cmac()
-		return orig_cmac == new_cmac
+	def get_cmac(self):
+		if self.cmac_type == 'movable':
+			pass
+		elif self.cmac_type == 'agbsave':
+			pass
+		else:
+			self.seek(0)
+			return self.read(0x10)
+
+	def write_cmac(self, cmac):
+		if self.cmac_type == 'movable':
+			pass
+		elif self.cmac_type == 'agbsave':
+			pass
+		else:
+			self.seek(0)
+			self.write(cmac)
 
 class SDFile(CryptFile, ContentFile):
 	def __init__(self, upper, relpath):
 		CryptFile.__init__(self, upper)
-		ContentFile.__init__(self, relpath, sd=True)
+		ContentFile.__init__(self, upper, relpath, sd=True)
 
 		self.keyslot = 0x34
 		self.mode = 'ctr'
@@ -182,4 +221,4 @@ class SDFile(CryptFile, ContentFile):
 class NANDFile(CryptFile, ContentFile):
 	def __init__(self, upper, relpath):
 		CryptFile.__init__(self, upper)
-		ContentFile.__init__(self, relpath, sd=False)
+		ContentFile.__init__(self, upper, relpath, sd=False)

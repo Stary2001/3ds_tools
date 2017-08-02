@@ -4,6 +4,7 @@ from three_ds.aesengine import AESEngine
 from binascii import unhexlify
 import progressbar
 import os
+import math
 
 def extract(name, p, off=0, len=None):
 	bar = progressbar.ProgressBar()
@@ -11,7 +12,7 @@ def extract(name, p, off=0, len=None):
 	p.seek(off)
 	if len == None:
 		blk = 0x10000
-		num = p.length // blk
+		num = math.ceil(p.length / blk)
 	else:
 		blk = len
 		num = 1
