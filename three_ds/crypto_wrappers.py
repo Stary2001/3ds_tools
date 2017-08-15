@@ -23,26 +23,31 @@ def aes_ctr(key, ctr, data):
     decryptor = cipher.decryptor()
     return decryptor.update(data) + decryptor.finalize()
 
+def aes_ctr_buff(key, ctr, data, buff):
+    backend = default_backend()
+    cipher = Cipher(algorithms.AES(key), modes.CTR(ctr), backend=backend)
+    decryptor = cipher.decryptor()
+    return decryptor.update_into(data, buff) #+ decryptor.finalize()
+
 def aes_cmac(key, data):
     backend = default_backend()
     cmac = CMAC(algorithms.AES(key), backend=backend)
     cmac.update(data)
     return cmac.finalize()
 
-def xor(a, b):
-    a = a[:len(b)]
-    int_var = int.from_bytes(a, sys.byteorder)
-    int_key = int.from_bytes(b, sys.byteorder)
-    int_enc = int_var ^ int_key
-    return int_enc.to_bytes(len(a), sys.byteorder)
-
 def aes_ctr_dsi(key, ctr, data):
-    pad = aes_ctr(key, ctr, b'\x00' * len(data))
+    l = len(data)
 
-    data_dec = b""
+    data_rev = bytearray(l)
+    data_out = bytearray(l + 16)
     for i in range(0, len(data), 0x10):
-        data_dec += xor(pad[i:i+16][::-1], data[i:i+16])
-    return data_dec
+        data_rev[i:i+0x10] = data[i:i+0x10][::-1]
+
+    aes_ctr_buff(key, ctr, bytes(data_rev), data_out)
+
+    for i in range(0, len(data), 0x10):
+        data_out[i:i+0x10] = data_out[i:i+0x10][::-1]
+    return data_out[0:l]
 
 def aes_ecb_enc(key, data):
     backend = default_backend()
