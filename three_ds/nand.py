@@ -159,7 +159,7 @@ class NANDImage:
 			self.ctr_ctr = hashlib.sha256(cid).digest()[0:16]
 
 		if filename != None:
-			self.f = open(filename, "rb")
+			self.f = open(filename, "r+b")
 			self.real = True
 		else:
 			self.real = False
