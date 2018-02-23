@@ -6,7 +6,7 @@ import os
 from three_ds.aesengine import AESEngine
 from three_ds.content import SDFile, NANDFile
 import hashlib
-from binascii import hexlify
+from binascii import hexlify, unhexlify
 import struct
 import progressbar
 import math
@@ -15,6 +15,7 @@ parser = argparse.ArgumentParser(description='3DS SD card contents encryption/de
 parser.add_argument('action', metavar='action', type=str, help='encrypt/decrypt')
 parser.add_argument('dir', metavar='dir', type=str, help='SD dir to encrypt/decrypt')
 parser.add_argument('--movable', metavar='movable', type=str, help='movable.sed path')
+parser.add_argument('--movable-bare-key', metavar='movable_bare_key', type=str, help='movable.sed bare key - used with seedminer.')
 parser.add_argument('--otp', metavar='otp', type=str, help='OTP path')
 parser.add_argument('--out', metavar='out', type=str, help='output directory')
 parser.add_argument('--inplace', action='store_true', help='encrypt/decrypt in place')
@@ -28,10 +29,24 @@ if args.out == None and args.action != 'verify-cmac':
 	print("No output path! It is required!")
 	exit()
 
-success, what = AESEngine.init_keys(otp_path = args.otp, movable_path = args.movable, b9_path=args.boot9, required = ('otp', 'movable'))
+if args.nand and not args.otp:
+	print("OTP is required for NAND content!")
+	exit()
+
+if not (args.movable or args.movable_bare_key):
+	print("movable.sed (or the key) is required for all content!")
+	exit()
+
+success, what = AESEngine.init_keys(movable_path = args.movable, b9_path=args.boot9, required=[])
 if not success:
 	print("Missing " + what + "!")
 	exit()
+
+if args.movable_bare_key:
+	k = unhexlify(args.movable_bare_key)
+	AESEngine.set(0x30, keyy=k)
+	AESEngine.set(0x34, keyy=k)
+	AESEngine.set(0x3a, keyy=k)
 
 def crypt_file(mode, inbase, outbase, relpath):
 	blk = 0x10000
@@ -70,9 +85,13 @@ def cmac_file(mode, inbase, outbase, relpath, sd=True):
 			new_cmac = f.calculate_cmac()
 			f.write_cmac(new_cmac)
 
-keyy = None
-with open(AESEngine.movable_path, 'rb') as f:
-	keyy = f.read()[0x110:0x120]
+if not args.movable_bare_key:
+	keyy = None
+	with open(AESEngine.movable_path, 'rb') as f:
+		keyy = f.read()[0x110:0x120]
+else:
+	keyy = unhexlify(args.movable_bare_key)
+
 id0_bin = hashlib.sha256(keyy).digest()[0:0x10]
 
 id0 = "{:08x}{:08x}{:08x}{:08x}".format(*struct.unpack("<IIII", id0_bin))
@@ -92,9 +111,9 @@ if args.sd:
 
 				if args.action == 'encrypt' or args.action == 'decrypt':
 					print(p)
-					crypt_file(args.action, base, args.out, p)
+					crypt_file(args.action, base, args.out + "/" + id0 + "/" + id1 + "/", p)
 				elif args.action == 'fix-cmac' or args.action == 'verify-cmac':
-					cmac_file(args.action, base, args.out, p)
+					cmac_file(args.action, base, args.out + "/" + id0 + "/" + id1 + "/", p)
 	else:
 		print("Invalid ID0!")
 elif args.nand and args.action != 'encrypt' and args.action != 'decrypt':

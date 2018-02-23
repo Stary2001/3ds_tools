@@ -115,25 +115,22 @@ class AESEngine:
             elif k[3] == 'dev' and dev:
                 set(k[1], k[0], k[2])
 
-        otp = open(otp_path, 'rb').read()
         try:
-            f = open(otp_path, 'rb')
-            otp = f.read()
-            f.close()
+            with open(otp_path, 'rb') as f:
+                otp = f.read()
+                AESEngine.setup_console_unique_keys(otp, dev=dev)
         except FileNotFoundError:
-            return (not 'otp' in required, 'otp')
-
-        AESEngine.setup_console_unique_keys(otp, dev=dev)
+            if 'otp' in required:
+                return (False, 'otp')
 
         movable = None
         try:
-            f = open(movable_path, 'rb')
-            movable = f.read()
-            f.close()
+            with open(movable_path, 'rb') as f:
+                movable = f.read()
+                AESEngine.setup_movable_sed_keys(movable)
         except FileNotFoundError:
-            return (not 'movable' in required, 'movable')
-
-        AESEngine.setup_movable_sed_keys(movable)
+            if 'movable' in required:
+                return (False, 'movable')
 
         return (True, '')
 

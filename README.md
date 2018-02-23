@@ -14,7 +14,8 @@ These tools require the python `cryptography` module, installed with
 	* Requires OTP and NAND CID.
 * otp.py
 	* Tool for OTP encryption and decryption.
-* sd.py
-	* Tool for SD content encryption and decryption (_given movable.sed!_)
+* content.py
+	* Tool for working with SD&NAND contents. Generally requires a full path for all the files.
+	* Requires either full movable.sed or just the keyY (obtainable via seedminer?)
 
 If no arguments are passed, these tools will look in either `%appdata%\3DS\` on Windows or `$HOME/.3ds/` on macOS/Linux for the files required.
