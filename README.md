@@ -19,3 +19,6 @@ These tools require the python `cryptography` module, installed with
 	* Requires either full movable.sed or just the keyY (obtainable via seedminer?)
 
 If no arguments are passed, these tools will look in either `%appdata%\3DS\` on Windows or `$HOME/.3ds/` on macOS/Linux for the files required.
+
+# License
+This project is covered under the MIT License - see the LICENSE file.
